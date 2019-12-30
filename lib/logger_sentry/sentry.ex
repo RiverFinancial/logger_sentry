@@ -35,24 +35,31 @@ defmodule LoggerSentry.Sentry do
   @doc """
   Generate options for sentry.
   """
-  @spec generate_opts(Keyword.t(), list()) :: Keyword.t()
-  def generate_opts(metadata, message) do
+  @spec generate_opts(Keyword.t(), list(), list(atom()) | :all) :: Keyword.t()
+  def generate_opts(metadata, message, metadata_whitelist_keyss) do
     metadata
-    |> generate_opts_extra(message)
+    |> generate_opts_extra(message, metadata_whitelist_keyss)
     |> generate_opts_fingerprints(message)
   end
 
   @doc false
-  defp generate_opts_extra(metadata, msg) do
-    %{
-      application: Keyword.get(metadata, :application),
-      module: Keyword.get(metadata, :module),
-      function: Keyword.get(metadata, :function),
-      file: Keyword.get(metadata, :file),
-      line: Keyword.get(metadata, :line),
-      log_message: :erlang.iolist_to_binary(msg)
-    }
-    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+  defp generate_opts_extra(metadata, msg, data_whitelist_keys) do
+    case data_whitelist_keys do
+      :all ->
+        metadata
+        |> Enum.filter(fn {_key, value} ->
+          is_binary(value) || is_atom(value) || is_number(value)
+        end)
+
+      keys ->
+        Enum.reduce(keys, [], fn key, acc ->
+          case Keyword.fetch(metadata, key) do
+            {:ok, val} -> [{key, val} | acc]
+            :error -> acc
+          end
+        end)
+    end
+    |> Keyword.put(:log_message, :erlang.iolist_to_binary(msg))
     |> Map.new()
     |> Map.merge(Keyword.get(metadata, :extra, %{}))
     |> case do

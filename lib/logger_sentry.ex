@@ -151,14 +151,24 @@ defmodule Logger.Backends.Sentry do
 
     defp log_event(:error, metadata, msg, state) do
       {output, metadata} = LoggerSentry.Sentry.generate_output(:error, metadata, msg)
-      Sentry.capture_exception(output, LoggerSentry.Sentry.generate_opts(metadata, msg))
+
+      Sentry.capture_exception(
+        output,
+        LoggerSentry.Sentry.generate_opts(metadata, msg, state.metadata)
+      )
+
       state
     end
 
     defp log_event(level, metadata0, msg, state) do
       metadata = [{:level, normalize_level(level)} | metadata0]
       {output, metadata} = LoggerSentry.Sentry.generate_output(level, metadata, msg)
-      Sentry.capture_message(output, LoggerSentry.Sentry.generate_opts(metadata, msg))
+
+      Sentry.capture_message(
+        output,
+        LoggerSentry.Sentry.generate_opts(metadata, msg, state.metadata)
+      )
+
       state
     end
   end
